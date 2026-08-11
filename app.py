@@ -128,8 +128,8 @@ if os.path.exists(ARCHIVOMAESTRO):
   # -------------------------------------------------------------
   # REGLA CONGRESO -> ETIQUETA "URGENTE"
   # -------------------------------------------------------------
-  if "Asunto" in df_maestro.columns and "Alerta Vencimiento" in df_maestro.columns:
-    asunto_norm = df_maestro["Asunto"].astype(str).apply(normalizar_texto)
+  if "Tipo de Procedimiento" in df_maestro.columns and "Alerta Vencimiento" in df_maestro.columns:
+    asunto_norm = df_maestro["Tipo de Procedimiento"].astype(str).apply(normalizar_texto)
     es_congreso = asunto_norm.str.contains("congreso", na=False)
 
     # Reemplazamos la etiqueta por "Urgente" si contiene la palabra "congreso"
