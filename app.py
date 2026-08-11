@@ -126,16 +126,13 @@ if os.path.exists(ARCHIVOMAESTRO):
     ).fillna(0)
 
   # -------------------------------------------------------------
-  # NUEVA LÓGICA: DETECTAR "CONGRESO" Y ASIGNAR "URGENTE"
+  # REGLA CONGRESO -> ETIQUETA "URGENTE"
   # -------------------------------------------------------------
   if "Asunto" in df_maestro.columns and "Alerta Vencimiento" in df_maestro.columns:
-    # Normalizar texto para capturar "congreso", "Congreso", "CONGRESO", "cóngreso", etc.
-    asunto_normalizado = (
-        df_maestro["Asunto"].astype(str).apply(normalizar_texto)
-    )
-    es_congreso = asunto_normalizado.str.contains("congreso", na=False)
+    asunto_norm = df_maestro["Asunto"].astype(str).apply(normalizar_texto)
+    es_congreso = asunto_norm.str.contains("congreso", na=False)
 
-    # Asignar "Urgente" a los que contengan "congreso"
+    # Reemplazamos la etiqueta por "Urgente" si contiene la palabra "congreso"
     df_maestro.loc[es_congreso, "Alerta Vencimiento"] = "Urgente"
   # -------------------------------------------------------------
 
@@ -152,7 +149,7 @@ if os.path.exists(ARCHIVOMAESTRO):
     if st.button("📅 Por Vencer", use_container_width=True):
       st.session_state.filtro = "Por Vencer"
 
-  # Lógica de filtrado
+  # Lógica de filtrado e inclusión de "Urgente" dentro del grupo "Por Vencer"
   if "Alerta Vencimiento" in df_maestro.columns:
     if st.session_state.filtro == "Vencido":
       df_mostrar = df_maestro[
@@ -161,14 +158,21 @@ if os.path.exists(ARCHIVOMAESTRO):
           .str.contains("Vencido", case=False, na=False)
       ]
       st.markdown("### 🔴 Expedientes Vencidos")
+
     elif st.session_state.filtro == "Por Vencer":
-      condicion = df_maestro["Alerta Vencimiento"].astype(str).str.contains(
-          "Por Vencer", case=False, na=False
-      ) | df_maestro["Alerta Vencimiento"].astype(str).str.contains(
-          "Hoy", case=False, na=False
+      # Incluye "Por Vencer", "Hoy" y también "Urgente" (Congreso)
+      condicion = (
+          df_maestro["Alerta Vencimiento"]
+          .astype(str)
+          .str.contains("Por Vencer", case=False, na=False)
+          | df_maestro["Alerta Vencimiento"]
+          .astype(str)
+          .str.contains("Hoy", case=False, na=False)
+          | (df_maestro["Alerta Vencimiento"].astype(str) == "Urgente")
       )
       df_mostrar = df_maestro[condicion]
-      st.markdown("### 🟡 Expedientes Por Vencer")
+      st.markdown("### 🟡 Expedientes Por Vencer y Urgentes")
+
     else:
       df_mostrar = df_maestro.copy()
       st.markdown("### 📋 Mostrando: Todos los expedientes")
@@ -177,23 +181,20 @@ if os.path.exists(ARCHIVOMAESTRO):
     st.markdown("### 📋 Mostrando: Todos los expedientes")
 
   # -------------------------------------------------------------
-  # ORDENAR: Poner "Urgente" PRIMERO en el TOP y luego por "Dias Profesional"
+  # ORDENAR EN EL TOP: "Urgente" primero, luego por "Dias Profesional"
   # -------------------------------------------------------------
   if "Alerta Vencimiento" in df_mostrar.columns:
-    # Creamos una columna auxiliar de orden jerárquico
     df_mostrar["Es_Urgente"] = (
         df_mostrar["Alerta Vencimiento"].astype(str) == "Urgente"
     )
 
     if "Dias Profesional" in df_mostrar.columns:
-      # Prioridad 1: Es_Urgente (True primero) | Prioridad 2: Dias Profesional (Mayor a menor)
       df_mostrar = df_mostrar.sort_values(
           by=["Es_Urgente", "Dias Profesional"], ascending=[False, False]
       )
     else:
       df_mostrar = df_mostrar.sort_values(by="Es_Urgente", ascending=False)
 
-    # Eliminar columna auxiliar antes de mostrar
     df_mostrar = df_mostrar.drop(columns=["Es_Urgente"])
   elif "Dias Profesional" in df_mostrar.columns:
     df_mostrar = df_mostrar.sort_values(by="Dias Profesional", ascending=False)
